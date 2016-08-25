@@ -1,10 +1,14 @@
 library(ggplot2)
 library(stats4)
 
-HVDensity <- function(x, alpha, beta, delta) {
-  print(c(alpha=alpha, beta=beta, delta=delta))
-  if (alpha < 0 || alpha >= 2*pi || beta <= 0 || beta >= 2*pi || abs(delta) >= 1/pi)
+HVDensity <- function(x, hill, valley, delta) {
+  if (abs(delta) >= 1/pi)
     return(NA)
+  
+  Mod <- function(x, m) x - floor(x/m)*m 
+  alpha <- Mod(valley, 2*pi)
+  beta <- Mod(hill-valley, 2*pi)
+  print(c(alpha=alpha, beta=beta, delta=delta))
   
   b1 <- function(x) (x-beta)^2 * (x+0.5*beta) / (0.5*beta^3)
   b2 <- function(x) x^2 * (x-1.5*beta) / (-0.5*beta^3)
@@ -19,40 +23,29 @@ HVDensity <- function(x, alpha, beta, delta) {
          eps * b3(sft_x) + (eps+delta) * b4(sft_x))
 }
 
-HVLogl <- function(t, alpha, beta, delta) -sum(log(HVDensity(t, alpha, beta, delta)))
+HVLogl <- function(t, hill, valley, delta) -sum(log(HVDensity(t, hill, valley, delta)))
 
 FitHV <- function(t) {
   ### t from 0 to <2*pi
-  fit <- mle(HVLogl, start = list(alpha=pi, beta=pi, delta=0.5/pi), fixed = list(t = t), control = list())
+  fit <- mle(HVLogl, start = list(hill=2*pi, valley=pi, delta=0.5/pi), fixed = list(t = t), control = list())
   list(coef = fit@coef, vcov = fit@vcov, logl = fit@min)
 }
 
 
 ### Test examples
 xx <- seq(0, 2*pi, by=0.01)
-yy <- HVDensity(xx, 0.25*2*pi, 0.666*2*pi, 0.5/pi)
+yy <- HVDensity(xx, valley=0.25*2*pi, hill=(0.666+0.25)*2*pi, 0.5/pi)
 ggplot(data.frame(x=xx, y=yy), aes(x=x, y=y)) + geom_path()
-yy <- HVDensity(xx, 0.125*2*pi, 0.2*2*pi, 1/pi)
+yy <- HVDensity(xx, valley=0.125*2*pi, hill=(0.2+0.125)*2*pi, 0.9/pi)
 ggplot(data.frame(x=xx, y=yy), aes(x=x, y=y)) + geom_path()
-yy <- HVDensity(xx, 0.125*2*pi, 0.2*2*pi, 0)
+yy <- HVDensity(xx, valley=0.125*2*pi, hill=(0.2+0.125)*2*pi, 0)
+ggplot(data.frame(x=xx, y=yy), aes(x=x, y=y)) + geom_path()
+yy <- HVDensity(xx, valley=0, hill=(1+0.1)*2*pi, 0.5/pi)
 ggplot(data.frame(x=xx, y=yy), aes(x=x, y=y)) + geom_path()
 
-HVLogl(xx, 0.25*2*pi, 0.666*2*pi, 0.5/pi)
+HVLogl(xx, valley=0.25*2*pi, hill=(0.666+0.25)*2*pi, 0.5/pi)
 
 fit <- FitHV(xx)
 yy <- HVDensity(xx, fit$coef[1], fit$coef[2], fit$coef[3])
 ggplot(data.frame(x=xx, y=yy), aes(x=x, y=y)) + geom_path()
 
-# eps * (x-beta)^2 * (x+0.5*beta) / (0.5*beta^3) +
-#   (eps+delta) * x^2 * (x-1.5*beta) / (-0.5*beta^3) +
-#   eps * (x-beta)^2 * (x-3*pi+0.5*beta) / (-4*(pi-0.5*beta)^3) +
-#   (eps+delta) * (x-2*pi)^2 * (x+pi-1.5*beta) / (4*(pi-0.5*beta)^3)
-# 
-# 
-# eps * (x-beta)^2 * (x+0.5*beta) / (0.5*beta^3) + 0.5*(eps+delta) * (x-2*pi)^2 * (x+pi-1.5*beta) / (4*(pi-0.5*beta)^3)
-# 0.5*(eps+delta) * x^2 * (x-1.5*beta) / (-0.5*beta^3) + eps * (x-beta)^2 * (x-3*pi+0.5*beta) / (-4*(pi-0.5*beta)^3)
-# 
-# 8*pi^4*eps/beta^3 - 8*pi^3*eps/beta^2 + 4*pi^3*(pi-beta)*(delta+eps)/(2*pi-beta)^3+2*pi*eps
-# 2*pi*(-beta^3 + 6*pi*beta^2 - 8*pi^2*beta + 4*pi^3)*eps/(2*pi-beta)^3 - 4*pi^3*(pi-beta)*(delta+eps)/beta^3
-# 
-# 4*pi^3*(beta*(delta+eps)-pi*(delta-eps))/beta^3 + (4*pi-8*pi^3/beta^2)*eps + 4*pi^3*(beta-pi)*(delta-eps)/(beta-2*pi)^3

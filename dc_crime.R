@@ -6,7 +6,7 @@ library(sp)
 library(corrplot)
 # library(ggmap)
 
-d <- read.csv('~/Downloads/crime_incidents_2013_CSV.csv')
+d <- read.csv('~/data-repository/crime/crime_incidents_2013_CSV.csv')
 
 # blockMatch <- str_match(d$BLOCKSITEADDRESS, '([0-9]+) +((- +)?[0-9]+ +)?BLOCK OF (.+) (SW|NW|SE|NE)?')
 # blockAddress <- str_c(blockMatch[, 2], blockMatch[, 5], 'DC', sep = ' ')
@@ -110,8 +110,9 @@ ggplot(rbind(rob, burg), aes(x = t, y = density)) + geom_point(aes(color = facto
 
 #### Hill Valley density fitting
 library(lubridate)
+source('~/r-workspace/data_incubator/di-DC/hill-valley-6-spline.R')
 
-d <- read.csv('~/Downloads/crime_incidents_2013_CSV.csv')
+d <- read.csv('~/data-repository/crime/crime_incidents_2013_CSV.csv')
 datetime <- mdy_hms(d$START_DATE)
 timeOfDay <- (hour(datetime) + minute(datetime)/60) /12*pi
 offenses <- levels(d$OFFENSE)
@@ -142,8 +143,10 @@ for (i in seq_along(offenses)) {
   upper <- plt[[i]]$coef + 1.96 * plt[[i]]$sd
   lower <- plt[[i]]$coef - 1.96 * plt[[i]]$sd
   cat(sprintf('Size of %s: %d\n', offenses[i], plt[[i]]$size))
-  cat(sprintf('[%f, %f, %f]', lower, plt[[i]]$coef, upper))
-  cat('\n')
+  signif <- ifelse(sign(lower)*sign(higher)>0, '*', '')
+  cat(sprintf('tau = %f (%s), ', plt[[i]]$coef[1], signif[1]))
+  cat(sprintf('kappa = %f (%s), ', plt[[i]]$coef[2], signif[2]))
+  cat(sprintf('lambda = %f (%s)\n', plt[[i]]$coef[3], signif[3]))
 }
 
 multiplot(plt[[1]]$nonparam, plt[[1]]$param,
